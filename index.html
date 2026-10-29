@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asado en lo de Erramouspe</title>
+  <meta name="description" content="Cuenta atrás para el asado en lo de Erramouspe">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+  <style>
+    :root {
+      --bg: #1a0f0a;
+      --bg2: #2b140a;
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 170, 90, 0.25);
+      --text: #fbeee0;
+      --muted: #d4b79c;
+      --accent: #ff8a3d;
+      --accent2: #ffcf5c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: radial-gradient(ellipse at bottom, var(--bg2) 0%, var(--bg) 70%) fixed;
+      background-color: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      overflow-x: hidden;
+    }
+    main { width: 100%; max-width: 760px; text-align: center; position: relative; z-index: 1; }
+    .emoji { font-size: clamp(3rem, 10vw, 5rem); line-height: 1; animation: flicker 2.5s infinite ease-in-out; }
+    h1 {
+      font-size: clamp(1.8rem, 6vw, 3.2rem);
+      font-weight: 800;
+      margin: 12px 0 8px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .subtitle { color: var(--muted); font-size: clamp(1rem, 3vw, 1.15rem); margin-bottom: 32px; }
+    .countdown {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: clamp(8px, 2vw, 16px);
+    }
+    .unit {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: clamp(14px, 3vw, 24px) 4px;
+      backdrop-filter: blur(4px);
+    }
+    .num {
+      font-size: clamp(2rem, 9vw, 4rem);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent2);
+      text-shadow: 0 0 18px rgba(255, 138, 61, 0.45);
+    }
+    .label { color: var(--muted); font-size: clamp(0.7rem, 2.2vw, 0.9rem); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+    .date { margin-top: 28px; color: var(--muted); font-size: 0.95rem; }
+    .done { display: none; font-size: clamp(1.6rem, 6vw, 2.6rem); font-weight: 800; color: var(--accent2); margin-top: 8px; }
+    .finished .countdown { display: none; }
+    .finished .done { display: block; }
+
+    .embers { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+    .ember {
+      position: absolute;
+      bottom: -10px;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px 2px rgba(255, 138, 61, 0.7);
+      opacity: 0;
+      animation: rise linear infinite;
+    }
+    @keyframes rise {
+      0%   { transform: translate(0, 0); opacity: 0; }
+      10%  { opacity: 1; }
+      100% { transform: translate(var(--drift), -105vh); opacity: 0; }
+    }
+    @keyframes flicker {
+      0%, 100% { transform: scale(1) rotate(-2deg); }
+      50% { transform: scale(1.08) rotate(2deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .emoji, .ember { animation: none; }
+      .embers { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="embers" id="embers" aria-hidden="true"></div>
+
+  <main id="app">
+    <div class="emoji">🔥🥩</div>
+    <h1>Asado en lo de Erramouspe</h1>
+    <p class="subtitle">Falta cada vez menos para prender el fuego</p>
+
+    <div class="countdown" role="timer" aria-live="off">
+      <div class="unit"><div class="num" id="days">--</div><div class="label">Días</div></div>
+      <div class="unit"><div class="num" id="hours">--</div><div class="label">Horas</div></div>
+      <div class="unit"><div class="num" id="minutes">--</div><div class="label">Minutos</div></div>
+      <div class="unit"><div class="num" id="seconds">--</div><div class="label">Segundos</div></div>
+    </div>
+
+    <p class="done">¡Llegó el día! A la parrilla 🍖</p>
+    <p class="date" id="date"></p>
+  </main>
+
+  <script>
+    // Fecha objetivo: 15 días desde el 29/10/2026 (hora -03:00)
+    const TARGET = new Date("2026-11-13T21:00:00-03:00");
+
+    const app = document.getElementById("app");
+    const els = {
+      days: document.getElementById("days"),
+      hours: document.getElementById("hours"),
+      minutes: document.getElementById("minutes"),
+      seconds: document.getElementById("seconds"),
+    };
+
+    document.getElementById("date").textContent =
+      TARGET.toLocaleString("es", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+
+    const pad = n => String(n).padStart(2, "0");
+
+    function tick() {
+      const diff = TARGET - Date.now();
+      if (diff <= 0) {
+        app.classList.add("finished");
+        clearInterval(timer);
+        return;
+      }
+      const s = Math.floor(diff / 1000);
+      els.days.textContent = Math.floor(s / 86400);
+      els.hours.textContent = pad(Math.floor((s % 86400) / 3600));
+      els.minutes.textContent = pad(Math.floor((s % 3600) / 60));
+      els.seconds.textContent = pad(s % 60);
+    }
+
+    const timer = setInterval(tick, 1000);
+    tick();
+
+    // Brasas flotando
+    const embers = document.getElementById("embers");
+    for (let i = 0; i < 30; i++) {
+      const e = document.createElement("span");
+      e.className = "ember";
+      e.style.left = Math.random() * 100 + "%";
+      e.style.setProperty("--drift", (Math.random() * 120 - 60) + "px");
+      e.style.animationDuration = (6 + Math.random() * 8) + "s";
+      e.style.animationDelay = (Math.random() * 10) + "s";
+      embers.appendChild(e);
+    }
+  </script>
+</body>
+</html>
